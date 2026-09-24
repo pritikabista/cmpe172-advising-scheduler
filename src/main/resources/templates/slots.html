@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Available Slots</title>
+</head>
+<body>
+<h1>Available Advising Slots</h1>
+<p><a href="/">&larr; Home</a></p>
+
+<p th:if="${#lists.isEmpty(slots)}">No available slots.</p>
+
+<table border="1" cellpadding="6" th:unless="${#lists.isEmpty(slots)}">
+    <tr><th>Date</th><th>Time</th><th>Service</th><th>Advisor</th><th>Location</th></tr>
+    <tr th:each="s : ${slots}">
+        <td th:text="${s.date}"></td>
+        <td th:text="${s.time}"></td>
+        <td th:text="${s.serviceName}"></td>
+        <td th:text="${s.advisorName}"></td>
+        <td th:text="${s.location}"></td>
+    </tr>
+</table>
+
+<p>
+    <a th:if="${page > 0}" th:href="@{/slots(page=${page - 1})}">&larr; Previous</a>
+    <span th:text="'Page ' + ${page + 1}"></span>
+    <a th:if="${hasNext}" th:href="@{/slots(page=${page + 1})}">Next &rarr;</a>
+</p>
+</body>
+</html>

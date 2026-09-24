@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>SJSU Campus Advising</title>
+</head>
+<body>
+<h1>SJSU Campus Advising</h1>
+<p>Book a meeting with an academic advisor.</p>
+
+<h2>Advising Services</h2>
+<table border="1" cellpadding="6">
+    <tr><th>Service</th><th>Description</th><th>Length</th></tr>
+    <tr th:each="s : ${services}">
+        <td th:text="${s.name}"></td>
+        <td th:text="${s.description}"></td>
+        <td th:text="${s.durationMinutes} + ' min'"></td>
+    </tr>
+</table>
+
+<p><a href="/slots">View available slots &rarr;</a></p>
+</body>
+</html>
