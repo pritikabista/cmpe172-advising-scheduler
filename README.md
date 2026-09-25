@@ -44,4 +44,4 @@ All seed users have the password `password123` (stored BCrypt-hashed).
 - Students: `student_alex`, `student_maya`, `student_leo`
 
 ## Code walkthrough video
-Milestone 1: 
+Milestone 1: https://youtu.be/_3F6ODbN2GE 
