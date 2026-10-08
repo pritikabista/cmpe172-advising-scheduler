@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${title} + ' | SJSU Advising'">SJSU Advising</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 960px; margin: 0 auto; padding: 0 16px 40px; color: #222; }
+        nav { display: flex; gap: 16px; align-items: center; padding: 12px 0; border-bottom: 2px solid #0055a2; margin-bottom: 20px; flex-wrap: wrap; }
+        nav .brand { font-weight: bold; color: #0055a2; margin-right: auto; text-decoration: none; }
+        nav form { display: inline; margin: 0; }
+        a { color: #0055a2; }
+        table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+        th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+        th { background: #f0f4f8; }
+        .msg { background: #e6f4ea; border: 1px solid #9ad0a8; padding: 8px 12px; }
+        .err { background: #fdecea; border: 1px solid #f1a9a0; padding: 8px 12px; }
+        .muted { color: #666; }
+        button, .btn { background: #0055a2; color: #fff; border: 0; padding: 6px 12px; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 14px; }
+        button.danger { background: #b3261e; }
+        button.link { background: none; color: #0055a2; padding: 0; text-decoration: underline; }
+        form.inline { display: inline; }
+        label { display: inline-block; margin: 4px 12px 4px 0; }
+    </style>
+</head>
+<body>
+
+<nav th:fragment="nav">
+    <a class="brand" th:href="@{/}">SJSU Campus Advising</a>
+    <a th:href="@{/slots}">Available Slots</a>
+    <a th:if="${isStudent}" th:href="@{/appointments}">My Appointments</a>
+    <a th:if="${isAdvisor}" th:href="@{/provider/slots}">My Slots</a>
+    <a th:if="${isAdvisor}" th:href="@{/provider/appointments}">Bookings</a>
+    <span th:if="${username != null}" class="muted" th:text="'Signed in as ' + ${username}"></span>
+    <form th:if="${username != null}" th:action="@{/logout}" method="post">
+        <button type="submit" class="link">Log out</button>
+    </form>
+    <a th:if="${username == null}" th:href="@{/login}">Log in</a>
+</nav>
+
+</body>
+</html>
