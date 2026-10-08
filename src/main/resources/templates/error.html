@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Error')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+
+<h1 th:text="${status} + ' ' + ${error}">Error</h1>
+<p class="err" th:if="${message != null and message != ''}" th:text="${message}"></p>
+<p class="err" th:if="${(message == null or message == '') and status == 403}">You don't have permission to view this page.</p>
+<p class="err" th:if="${(message == null or message == '') and status == 404}">That page doesn't exist.</p>
+<p class="err" th:if="${(message == null or message == '') and status != 403 and status != 404}">Something went wrong.</p>
+<p><a th:href="@{/slots}">Back to available slots</a></p>
+</body>
+</html>
