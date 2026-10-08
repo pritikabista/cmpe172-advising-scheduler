@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Booking Confirmed')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+
+<h1>Booking Confirmed &#10003;</h1>
+<p class="msg" th:text="'Appointment #' + ${appt.id} + ' is booked.'"></p>
+
+<table>
+    <tr><th>Date</th><td th:text="${appt.date}"></td></tr>
+    <tr><th>Time</th><td th:text="${appt.time}"></td></tr>
+    <tr><th>Service</th><td th:text="${appt.serviceName}"></td></tr>
+    <tr><th>Advisor</th><td th:text="${appt.advisorName}"></td></tr>
+    <tr><th>Location</th><td th:text="${appt.location}"></td></tr>
+    <tr><th>Notes</th><td th:text="${appt.notes ?: '-'}"></td></tr>
+    <tr><th>Status</th><td th:text="${appt.status}"></td></tr>
+</table>
+
+<p><a th:href="@{/appointments}">Go to My Appointments &rarr;</a></p>
+</body>
+</html>

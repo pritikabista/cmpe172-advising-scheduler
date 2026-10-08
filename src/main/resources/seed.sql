@@ -23,7 +23,15 @@ INSERT INTO availability_slots (provider_id, service_id, start_time, end_time) V
 (2, 1, CURRENT_DATE + INTERVAL '1 day 11 hours',  CURRENT_DATE + INTERVAL '1 day 11 hours 30 minutes'),
 (2, 1, CURRENT_DATE + INTERVAL '2 days 9 hours',  CURRENT_DATE + INTERVAL '2 days 9 hours 30 minutes'),
 (2, 3, CURRENT_DATE + INTERVAL '2 days 15 hours', CURRENT_DATE + INTERVAL '2 days 15 hours 30 minutes'),
-(2, 2, CURRENT_DATE + INTERVAL '4 days 10 hours', CURRENT_DATE + INTERVAL '4 days 10 hours 45 minutes');
+(2, 2, CURRENT_DATE + INTERVAL '4 days 10 hours', CURRENT_DATE + INTERVAL '4 days 10 hours 45 minutes'),
+(1, 3, CURRENT_DATE - INTERVAL '2 days' + INTERVAL '10 hours', CURRENT_DATE - INTERVAL '2 days' + INTERVAL '10 hours 30 minutes'),
+(1, 1, CURRENT_DATE + INTERVAL '5 days 9 hours',  CURRENT_DATE + INTERVAL '5 days 9 hours 30 minutes'),
+(2, 4, CURRENT_DATE + INTERVAL '5 days 13 hours', CURRENT_DATE + INTERVAL '5 days 14 hours');
 
-INSERT INTO appointments (customer_id, slot_id, service_id, status, notes) VALUES
-(3, 1, 1, 'BOOKED', 'Need help picking CS electives');
+-- slot 1: active booking (hidden from /slots)
+-- slot 9: past appointment (shows in Alex's history)
+-- slot 5: cancelled booking (slot is free again thanks to the partial unique index)
+INSERT INTO appointments (customer_id, slot_id, service_id, status, notes, cancelled_at) VALUES
+(3, 1, 1, 'BOOKED',    'Need help picking CS electives', NULL),
+(3, 9, 3, 'BOOKED',    'Check remaining GE units',       NULL),
+(3, 5, 1, 'CANCELLED', 'Schedule conflict',              CURRENT_TIMESTAMP);

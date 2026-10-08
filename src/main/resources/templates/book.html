@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Book Appointment')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+
+<h1>Appointment Details</h1>
+
+<table>
+    <tr><th>Date</th><td th:text="${slot.date}"></td></tr>
+    <tr><th>Time</th><td th:text="${slot.time}"></td></tr>
+    <tr><th>Service</th><td th:text="${slot.serviceName}"></td></tr>
+    <tr><th>Advisor</th><td th:text="${slot.advisorName}"></td></tr>
+    <tr><th>Location</th><td th:text="${slot.location}"></td></tr>
+</table>
+
+<form th:action="@{/slots/{id}/book(id=${slot.id})}" method="post">
+    <p>
+        <label for="notes">Notes for the advisor (optional)</label><br>
+        <textarea id="notes" name="notes" rows="3" cols="60" maxlength="255"
+                  placeholder="e.g. I want to plan my CS electives"></textarea>
+    </p>
+    <button type="submit">Confirm booking</button>
+    <a th:href="@{/slots}">Cancel</a>
+</form>
+</body>
+</html>

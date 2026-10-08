@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('My Appointments')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+
+<h1>My Appointments</h1>
+<p class="msg" th:if="${message}" th:text="${message}"></p>
+
+<h2>Upcoming</h2>
+<p th:if="${#lists.isEmpty(upcoming)}" class="muted">No upcoming appointments.
+    <a th:href="@{/slots}">Book one</a>.</p>
+<table th:unless="${#lists.isEmpty(upcoming)}">
+    <tr><th>Date</th><th>Time</th><th>Service</th><th>Advisor</th><th>Location</th><th>Notes</th><th></th></tr>
+    <tr th:each="a : ${upcoming}">
+        <td th:text="${a.date}"></td>
+        <td th:text="${a.time}"></td>
+        <td th:text="${a.serviceName}"></td>
+        <td th:text="${a.advisorName}"></td>
+        <td th:text="${a.location}"></td>
+        <td th:text="${a.notes ?: '-'}"></td>
+        <td>
+            <form class="inline" th:if="${a.canCancel}" th:action="@{/appointments/{id}/cancel(id=${a.id})}"
+                  method="post" onsubmit="return confirm('Cancel this appointment?');">
+                <button type="submit" class="danger">Cancel</button>
+            </form>
+        </td>
+    </tr>
+</table>
+
+<h2>History</h2>
+<p th:if="${#lists.isEmpty(history)}" class="muted">No past or cancelled appointments.</p>
+<table th:unless="${#lists.isEmpty(history)}">
+    <tr><th>Date</th><th>Time</th><th>Service</th><th>Advisor</th><th>Status</th><th>Notes</th></tr>
+    <tr th:each="a : ${history}">
+        <td th:text="${a.date}"></td>
+        <td th:text="${a.time}"></td>
+        <td th:text="${a.serviceName}"></td>
+        <td th:text="${a.advisorName}"></td>
+        <td th:text="${a.status}"></td>
+        <td th:text="${a.notes ?: '-'}"></td>
+    </tr>
+</table>
+</body>
+</html>

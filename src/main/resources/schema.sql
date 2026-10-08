@@ -57,3 +57,7 @@ CREATE TABLE appointments (
 CREATE UNIQUE INDEX uq_one_active_booking_per_slot
     ON appointments (slot_id)
     WHERE status = 'BOOKED';
+
+-- Helpful indexes for the queries used by the app
+CREATE INDEX idx_slots_start_time        ON availability_slots (start_time);
+CREATE INDEX idx_appointments_customer   ON appointments (customer_id);

@@ -1,30 +1,55 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <title>Available Slots</title>
-</head>
+<head th:replace="~{fragments :: head('Available Slots')}"></head>
 <body>
+<nav th:replace="~{fragments :: nav}"></nav>
+
 <h1>Available Advising Slots</h1>
-<p><a href="/">&larr; Home</a></p>
 
-<p th:if="${#lists.isEmpty(slots)}">No available slots.</p>
+<form th:action="@{/slots}" method="get">
+    <label>Advisor
+        <select name="providerId">
+            <option value="">All advisors</option>
+            <option th:each="p : ${providers}" th:value="${p.id}"
+                    th:text="${p.name} + ' (' + ${p.department} + ')'"
+                    th:selected="${p.id == providerId}"></option>
+        </select>
+    </label>
+    <label>Service
+        <select name="serviceId">
+            <option value="">All services</option>
+            <option th:each="s : ${services}" th:value="${s.id}" th:text="${s.name}"
+                    th:selected="${s.id == serviceId}"></option>
+        </select>
+    </label>
+    <label>Date <input type="date" name="date" th:value="${date}"></label>
+    <button type="submit">Filter</button>
+    <a th:href="@{/slots}">Clear</a>
+</form>
 
-<table border="1" cellpadding="6" th:unless="${#lists.isEmpty(slots)}">
-    <tr><th>Date</th><th>Time</th><th>Service</th><th>Advisor</th><th>Location</th></tr>
+<p th:if="${#lists.isEmpty(slots)}">No available slots match your filters.</p>
+
+<table th:unless="${#lists.isEmpty(slots)}">
+    <tr><th>Date</th><th>Time</th><th>Service</th><th>Advisor</th><th>Location</th><th></th></tr>
     <tr th:each="s : ${slots}">
         <td th:text="${s.date}"></td>
         <td th:text="${s.time}"></td>
         <td th:text="${s.serviceName}"></td>
         <td th:text="${s.advisorName}"></td>
         <td th:text="${s.location}"></td>
+        <td>
+            <a th:if="${isStudent}" class="btn" th:href="@{/slots/{id}/book(id=${s.id})}">Book</a>
+            <a th:if="${username == null}" th:href="@{/login}">Log in to book</a>
+        </td>
     </tr>
 </table>
 
 <p>
-    <a th:if="${page > 0}" th:href="@{/slots(page=${page - 1})}">&larr; Previous</a>
+    <a th:if="${page > 0}"
+       th:href="@{/slots(page=${page - 1}, providerId=${providerId}, serviceId=${serviceId}, date=${date})}">&larr; Previous</a>
     <span th:text="'Page ' + ${page + 1}"></span>
-    <a th:if="${hasNext}" th:href="@{/slots(page=${page + 1})}">Next &rarr;</a>
+    <a th:if="${hasNext}"
+       th:href="@{/slots(page=${page + 1}, providerId=${providerId}, serviceId=${serviceId}, date=${date})}">Next &rarr;</a>
 </p>
 </body>
 </html>
