@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('My Slots')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+
+<h1>My Availability Slots</h1>
+<p class="msg" th:if="${message}" th:text="${message}"></p>
+
+<h2>Add a slot</h2>
+<form th:action="@{/provider/slots}" method="post">
+    <label>Service
+        <select name="serviceId" required>
+            <option th:each="s : ${services}" th:value="${s.id}"
+                    th:text="${s.name} + ' (' + ${s.durationMinutes} + ' min)'"></option>
+        </select>
+    </label>
+    <label>Date <input type="date" name="date" required></label>
+    <label>Start time <input type="time" name="time" required></label>
+    <button type="submit">Add slot</button>
+</form>
+<p class="muted">End time is set from the service length.</p>
+
+<h2>All my slots</h2>
+<p th:if="${#lists.isEmpty(slots)}" class="muted">You have no slots yet.</p>
+<table th:unless="${#lists.isEmpty(slots)}">
+    <tr><th>Date</th><th>Time</th><th>Service</th><th>Booked by</th><th></th></tr>
+    <tr th:each="s : ${slots}">
+        <td th:text="${s.date}"></td>
+        <td th:text="${s.time}"></td>
+        <td th:text="${s.serviceName}"></td>
+        <td th:text="${s.bookedBy ?: (s.upcoming ? 'Open' : '-')}"></td>
+        <td>
+            <form class="inline" th:if="${s.upcoming and s.bookedBy == null}"
+                  th:action="@{/provider/slots/{id}/delete(id=${s.id})}" method="post"
+                  onsubmit="return confirm('Delete this slot?');">
+                <button type="submit" class="danger">Delete</button>
+            </form>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

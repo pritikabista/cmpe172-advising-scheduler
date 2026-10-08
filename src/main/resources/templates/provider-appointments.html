@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Bookings')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+
+<h1>Appointments Booked With Me</h1>
+
+<p th:if="${#lists.isEmpty(appointments)}" class="muted">No appointments yet.</p>
+<table th:unless="${#lists.isEmpty(appointments)}">
+    <tr><th>Date</th><th>Time</th><th>Service</th><th>Student</th><th>Email</th><th>Status</th><th>Notes</th></tr>
+    <tr th:each="a : ${appointments}">
+        <td th:text="${a.date}"></td>
+        <td th:text="${a.time}"></td>
+        <td th:text="${a.serviceName}"></td>
+        <td th:text="${a.studentName}"></td>
+        <td th:text="${a.studentEmail}"></td>
+        <td th:text="${a.status}"></td>
+        <td th:text="${a.notes ?: '-'}"></td>
+    </tr>
+</table>
+</body>
+</html>
