@@ -1,0 +1,10 @@
+services:
+  db:
+    image: postgres:16
+    container_name: appt-db
+    environment:
+      POSTGRES_USER: appt
+      POSTGRES_PASSWORD: appt
+      POSTGRES_DB: appointments
+    ports:
+      - "5432:5432"
