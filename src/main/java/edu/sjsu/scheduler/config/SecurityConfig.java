@@ -26,7 +26,13 @@ public class SecurityConfig {
                 .requestMatchers("/provider/**").hasRole("PROVIDER")
                 // public pages
                 .requestMatchers("/", "/slots", "/login", "/error").permitAll()
+                // Milestone 3: health + metrics, and the mock notification service API
+                .requestMatchers("/health", "/actuator/health", "/actuator/metrics", "/actuator/metrics/**").permitAll()
+                .requestMatchers("/mock-notify/**").permitAll()
                 .anyRequest().authenticated())
+            // The mock notification service is a machine-to-machine JSON API (no browser form),
+            // so it doesn't use CSRF tokens.
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/mock-notify/**"))
             .formLogin(form -> form
                 .loginPage("/login")
                 .defaultSuccessUrl("/dashboard", true)

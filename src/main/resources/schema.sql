@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS notification_outbox CASCADE;
 DROP TABLE IF EXISTS appointments CASCADE;
 DROP TABLE IF EXISTS availability_slots CASCADE;
 DROP TABLE IF EXISTS services CASCADE;
@@ -61,3 +62,20 @@ CREATE UNIQUE INDEX uq_one_active_booking_per_slot
 -- Helpful indexes for the queries used by the app
 CREATE INDEX idx_slots_start_time        ON availability_slots (start_time);
 CREATE INDEX idx_appointments_customer   ON appointments (customer_id);
+
+-- Milestone 3: notifications that could not be delivered (fallback) wait here for the retry job.
+-- event_id is the primary key, so the same event can never be queued twice (idempotent).
+CREATE TABLE notification_outbox (
+    event_id    VARCHAR(100) PRIMARY KEY,
+    recipient   VARCHAR(100) NOT NULL,
+    type        VARCHAR(30)  NOT NULL,
+    message     VARCHAR(500) NOT NULL,
+    status      VARCHAR(20)  NOT NULL DEFAULT 'PENDING'
+                CHECK (status IN ('PENDING', 'SENT', 'FAILED')),
+    attempts    INT          NOT NULL DEFAULT 0,
+    last_error  VARCHAR(255),
+    created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_outbox_pending ON notification_outbox (status, created_at);

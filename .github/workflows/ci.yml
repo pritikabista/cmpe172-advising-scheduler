@@ -1,0 +1,56 @@
+name: CI
+
+# Build + run all tests on every push (and on pull requests)
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    # PostgreSQL for the integration tests (same settings as local / docker-compose)
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: appt
+          POSTGRES_PASSWORD: appt
+          POSTGRES_DB: appointments
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U appt -d appointments"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build and run tests
+        run: |
+          chmod +x mvnw
+          ./mvnw -B verify
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/appointments
+          DB_USER: appt
+          DB_PASSWORD: appt
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: target/surefire-reports/
+
+      - name: Build Docker image
+        run: docker build -t advising-scheduler:ci .

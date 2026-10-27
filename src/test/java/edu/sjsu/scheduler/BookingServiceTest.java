@@ -8,6 +8,7 @@ import edu.sjsu.scheduler.service.BookingService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -31,6 +32,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *   slot 5 = had a CANCELLED booking (so it is open again)
  *   slot 9 = in the past
  */
+// Fresh schema + seed data for this class (test contexts are cached and share one database)
+@Sql(scripts = {"classpath:schema.sql", "classpath:seed.sql"},
+     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
 @SpringBootTest
 class BookingServiceTest {
 

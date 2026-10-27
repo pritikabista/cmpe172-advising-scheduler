@@ -8,8 +8,10 @@ import edu.sjsu.scheduler.exception.NotFoundException;
 import edu.sjsu.scheduler.exception.SlotAlreadyBookedException;
 import edu.sjsu.scheduler.model.AppUser;
 import edu.sjsu.scheduler.model.AppointmentRow;
+import edu.sjsu.scheduler.observability.BookingMetrics;
 import edu.sjsu.scheduler.repository.AppointmentRepository;
 import edu.sjsu.scheduler.repository.UserRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.CannotAcquireLockException;
@@ -23,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -38,6 +41,7 @@ class BookingServiceUnitTest {
     private UserRepository userRepo;
     private AppointmentRepository apptRepo;
     private SlotBookingTransaction tx;
+    private AppointmentNotifier notifier;
     private BookingService service;
 
     private final AppUser alex = new AppUser(3L, "student_alex", "hash", "Alex Nguyen", "alex@sjsu.edu", "CUSTOMER");
@@ -49,8 +53,10 @@ class BookingServiceUnitTest {
         userRepo = mock(UserRepository.class);
         apptRepo = mock(AppointmentRepository.class);
         tx = mock(SlotBookingTransaction.class);
+        notifier = mock(AppointmentNotifier.class);
         Clock clock = Clock.fixed(NOW.atZone(ZONE).toInstant(), ZONE);
-        service = new BookingService(userRepo, apptRepo, tx, clock);
+        service = new BookingService(userRepo, apptRepo, tx, notifier,
+                new BookingMetrics(new SimpleMeterRegistry()), clock);
 
         when(userRepo.findByUsername("student_alex")).thenReturn(Optional.of(alex));
         when(userRepo.findByUsername("student_maya")).thenReturn(Optional.of(maya));
@@ -159,6 +165,47 @@ class BookingServiceUnitTest {
         assertThatThrownBy(() -> service.cancel(10L, "student_alex"))
                 .isInstanceOf(InvalidRequestException.class);
         verify(apptRepo, never()).cancel(anyLong(), anyLong());
+    }
+
+    // ---------- commit-then-notify (Milestone 3) ----------
+
+    @Test
+    void book_sendsConfirmationAfterTheTransaction() {
+        when(tx.book(3L, 7L, null)).thenReturn(42L);
+        service.bookSlot(7L, "student_alex", null);
+
+        var order = inOrder(tx, notifier);
+        order.verify(tx).book(3L, 7L, null);          // 1) transaction (commits when it returns)
+        order.verify(notifier).appointmentBooked(42L); // 2) then notify
+    }
+
+    @Test
+    void book_failedBooking_sendsNoNotification() {
+        when(tx.book(anyLong(), anyLong(), any())).thenThrow(new SlotAlreadyBookedException(7L));
+        assertThatThrownBy(() -> service.bookSlot(7L, "student_alex", null))
+                .isInstanceOf(SlotAlreadyBookedException.class);
+        verify(notifier, never()).appointmentBooked(anyLong());
+    }
+
+    @Test
+    void cancel_sendsCancellationAfterUpdate() {
+        when(apptRepo.findCustomerId(10L)).thenReturn(Optional.of(3L));
+        when(apptRepo.findById(10L)).thenReturn(Optional.of(row(10L, "BOOKED", NOW.plusDays(1))));
+        when(apptRepo.cancel(10L, 3L)).thenReturn(1);
+
+        service.cancel(10L, "student_alex");
+
+        var order = inOrder(apptRepo, notifier);
+        order.verify(apptRepo).cancel(10L, 3L);
+        order.verify(notifier).appointmentCancelled(10L);
+    }
+
+    @Test
+    void cancel_rejected_sendsNoNotification() {
+        when(apptRepo.findCustomerId(10L)).thenReturn(Optional.of(3L));
+        assertThatThrownBy(() -> service.cancel(10L, "student_maya"))
+                .isInstanceOf(ForbiddenException.class);
+        verify(notifier, never()).appointmentCancelled(anyLong());
     }
 
     // ---------- status display ----------

@@ -1,10 +1,36 @@
+# Runs the whole system: PostgreSQL + the Spring Boot app.
+#   docker compose up --build      -> http://localhost:8080
+#   docker compose down            -> stop (add -v to also delete the database volume)
 services:
   db:
     image: postgres:16
-    container_name: appt-db
     environment:
       POSTGRES_USER: appt
       POSTGRES_PASSWORD: appt
       POSTGRES_DB: appointments
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appt -d appointments"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # No host port on purpose: only the app talks to the DB (inside the compose network),
+    # and it won't clash with a local appt-db container on 5432.
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy   # start the app only after Postgres is ready
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/appointments
+      DB_USER: appt
+      DB_PASSWORD: appt
+      TZ: America/Los_Angeles
     ports:
-      - "5432:5432"
+      - "8080:8080"
+    restart: on-failure
+
+volumes:
+  pgdata:

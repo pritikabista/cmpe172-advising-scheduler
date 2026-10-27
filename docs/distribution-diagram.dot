@@ -1,0 +1,43 @@
+digraph G {
+  graph [rankdir=LR, fontname="Helvetica", fontsize=12, nodesep=0.35, ranksep=0.55, pad=0.3, bgcolor="white",
+         label="Milestone 3 – Distribution Diagram: Client → Appointment Scheduler → Notification Service", labelloc=t, fontsize=16];
+  node  [fontname="Helvetica", fontsize=11, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#5b6b7b"];
+  edge  [fontname="Helvetica", fontsize=10, color="#44546a"];
+
+  client [label="Client\n(Browser)\nThymeleaf pages", fillcolor="#e8f0fb", color="#0055a2", penwidth=1.6];
+
+  subgraph cluster_app {
+    label="Appointment Scheduler  (Spring Boot app, port 8080)"; fontsize=13; fontname="Helvetica-Bold";
+    style="rounded,filled"; fillcolor="#f4f7fb"; color="#0055a2"; penwidth=1.6;
+
+    ctrl   [label="BookingController\n/ ProviderController"];
+    svc    [label="BookingService\n① bookAndCommit()\n② notify AFTER commit"];
+    tx     [label="SlotBookingTransaction\n@Transactional\nSELECT … FOR UPDATE"];
+    notif  [label="AppointmentNotifier\nbuilds NotificationRequest DTO\n(never fails the booking)"];
+    gw     [label="NotificationGateway\n(HttpNotificationGateway)\ntimeout 500 ms / 1000 ms\nretry ×3, backoff\nIdempotency-Key = eventId", fillcolor="#fff6e0", color="#b7791f", penwidth=1.6];
+    job    [label="NotificationRetryJob\n@Scheduled every 60 s\n(recovery)"];
+    health [label="GET /health\n/actuator/metrics"];
+
+    ctrl -> svc;
+    svc -> tx [label="1. transaction\n(commit)"];
+    svc -> notif [label="2. after commit"];
+    notif -> gw [label="send(DTO)"];
+    job -> gw [style=dashed, label="re-send\nPENDING"];
+  }
+
+  db [label="PostgreSQL\nappointments, availability_slots,\nnotification_outbox", shape=cylinder, fillcolor="#eef7ee", color="#2f7d32", penwidth=1.4];
+
+  subgraph cluster_ext {
+    label="Notification Service  (mock external system, /mock-notify)"; fontsize=13; fontname="Helvetica-Bold";
+    style="rounded,filled"; fillcolor="#fdf0ef"; color="#b3261e"; penwidth=1.6;
+    mock [label="MockNotificationController\nPOST /api/notifications\nlogs + stores by eventId\n(duplicates ignored)"];
+  }
+
+  client -> ctrl [label="HTTP (session cookie)\nPOST /slots/{id}/book", penwidth=1.4];
+  tx -> db [label="JDBC"];
+  gw -> mock [label="HTTP POST + JSON\n{eventId, recipient, type, message}", penwidth=2, color="#b3261e", fontcolor="#b3261e"];
+  notif -> db [style=dashed, label="fallback:\nsave PENDING\nto outbox", color="#b7791f", fontcolor="#b7791f"];
+  job -> db [style=dashed, label="read PENDING /\nmark SENT"];
+  health -> db [style=dotted, label="SELECT 1"];
+  health -> mock [style=dotted, label="GET /api/health"];
+}

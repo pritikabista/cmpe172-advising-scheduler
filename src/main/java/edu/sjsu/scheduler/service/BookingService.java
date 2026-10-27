@@ -1,20 +1,20 @@
 package edu.sjsu.scheduler.service;
 
 import edu.sjsu.scheduler.dto.AppointmentDto;
+import edu.sjsu.scheduler.exception.AppException;
 import edu.sjsu.scheduler.exception.ConflictException;
 import edu.sjsu.scheduler.exception.ForbiddenException;
 import edu.sjsu.scheduler.exception.InvalidRequestException;
 import edu.sjsu.scheduler.exception.NotFoundException;
 import edu.sjsu.scheduler.model.AppUser;
 import edu.sjsu.scheduler.model.AppointmentRow;
+import edu.sjsu.scheduler.observability.BookingMetrics;
 import edu.sjsu.scheduler.repository.AppointmentRepository;
 import edu.sjsu.scheduler.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -31,14 +31,31 @@ public class BookingService {
     private final UserRepository userRepository;
     private final AppointmentRepository appointmentRepository;
     private final SlotBookingTransaction bookingTransaction;
+    private final AppointmentNotifier notifier;
+    private final BookingMetrics metrics;
     private final Clock clock;
 
     public BookingService(UserRepository userRepository, AppointmentRepository appointmentRepository,
-                          SlotBookingTransaction bookingTransaction, Clock clock) {
+                          SlotBookingTransaction bookingTransaction, AppointmentNotifier notifier,
+                          BookingMetrics metrics, Clock clock) {
         this.userRepository = userRepository;
         this.appointmentRepository = appointmentRepository;
         this.bookingTransaction = bookingTransaction;
+        this.notifier = notifier;
+        this.metrics = metrics;
         this.clock = clock;
+    }
+
+    /**
+     * Book a slot, then send the confirmation.
+     * Commit-then-notify: bookAndCommit() returns only after the booking transaction has
+     * committed, and the remote notification call happens after that, outside the transaction.
+     * If the notification service is down the booking still succeeds (see AppointmentNotifier).
+     */
+    public long bookSlot(long slotId, String username, String notes) {
+        long appointmentId = bookAndCommit(slotId, username, notes);
+        notifier.appointmentBooked(appointmentId);
+        return appointmentId;
     }
 
     /**
@@ -46,29 +63,48 @@ public class BookingService {
      * Retries only on temporary DB problems (lock timeout, deadlock).
      * A real conflict (slot already booked -> 409) is never retried.
      */
-    public long bookSlot(long slotId, String username, String notes) {
-        AppUser student = requireStudent(username);
-        String cleanNotes = cleanNotes(notes);
+    private long bookAndCommit(long slotId, String username, String notes) {
+        long start = System.nanoTime();
+        try {
+            AppUser student = requireStudent(username);
+            String cleanNotes = cleanNotes(notes);
 
-        for (int attempt = 1; ; attempt++) {
-            try {
-                long id = bookingTransaction.book(student.id(), slotId, cleanNotes);
-                log.info("Appointment {} booked: slot={} user={} attempt={}", id, slotId, username, attempt);
-                return id;
-            } catch (TransientDataAccessException e) {
-                if (attempt >= MAX_ATTEMPTS) {
-                    log.warn("Booking slot {} failed after {} attempts", slotId, attempt);
-                    throw new ConflictException("The slot is busy right now. Please try again.");
+            for (int attempt = 1; ; attempt++) {
+                try {
+                    long id = bookingTransaction.book(student.id(), slotId, cleanNotes);
+                    log.info("Appointment {} booked: slot={} user={} attempt={}", id, slotId, username, attempt);
+                    metrics.bookingCreated();
+                    return id;
+                } catch (TransientDataAccessException e) {
+                    if (attempt >= MAX_ATTEMPTS) {
+                        log.warn("Booking slot {} failed after {} attempts", slotId, attempt);
+                        throw new ConflictException("The slot is busy right now. Please try again.");
+                    }
+                    log.info("Retrying booking for slot {} (attempt {} failed: {})",
+                            slotId, attempt, e.getClass().getSimpleName());
                 }
-                log.info("Retrying booking for slot {} (attempt {} failed: {})",
-                        slotId, attempt, e.getClass().getSimpleName());
             }
+        } catch (AppException e) {
+            metrics.bookingFailed(e.getClass().getSimpleName());
+            throw e;
+        } finally {
+            metrics.recordBookingLatency(System.nanoTime() - start);
         }
     }
 
-    /** Owner-only cancel of an upcoming BOOKED appointment. */
-    @Transactional(isolation = Isolation.READ_COMMITTED)
+    /** Owner-only cancel, then send the cancellation notice (commit-then-notify). */
     public void cancel(long appointmentId, String username) {
+        cancelAndCommit(appointmentId, username);
+        notifier.appointmentCancelled(appointmentId);
+    }
+
+    /**
+     * The checks below give clear 403/404/409/400 errors. The actual change is ONE conditional
+     * UPDATE that re-checks owner + BOOKED in its WHERE clause, so it is atomic on its own and
+     * is committed (auto-commit) before we return. No surrounding transaction is needed,
+     * which keeps the notification call that follows outside any transaction.
+     */
+    private void cancelAndCommit(long appointmentId, String username) {
         AppUser student = requireStudent(username);
 
         long ownerId = appointmentRepository.findCustomerId(appointmentId)
@@ -89,6 +125,7 @@ public class BookingService {
         if (appointmentRepository.cancel(appointmentId, student.id()) != 1) {
             throw new ConflictException("This appointment was already changed. Please refresh.");
         }
+        metrics.appointmentCancelled();
         log.info("Appointment {} cancelled by {}", appointmentId, username);
     }
 
