@@ -28,6 +28,9 @@ services:
       DB_USER: appt
       DB_PASSWORD: appt
       TZ: America/Los_Angeles
+      # Milestone 4: Gemini key comes from your local .env file (never committed)
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-not-configured}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
     ports:
       - "8080:8080"
     restart: on-failure

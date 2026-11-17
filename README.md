@@ -27,6 +27,33 @@ appointments with academic advisors.
 | Repositories | `SlotRepository`, `AppointmentRepository`, `UserRepository`, `ProviderRepository`, `ServiceRepository` |
 | Tests | `service/*UnitTest.java` (no DB), `BookingServiceTest.java` (Postgres, two-thread test) |
 
+## Milestone 4 – Enterprise AI (Spring AI + Gemini)
+- **Agent 1 – chat assistant** (`ai/agent/`): `POST /api/chat`, page **/assistant** (students). Spring AI `ChatClient`
+  + Gemini tool calling. Tools wrap the existing services: `findAvailableSlots`, `listMyAppointments`,
+  `proposeBooking` / `proposeCancellation` → `confirmPendingAction`. Multi-step tool use, alternatives when a slot is taken,
+  multi-turn memory.
+- **Guarded writes:** bookings go through `BookingService` (transaction + row lock + unique index + RBAC). The agent acts as the
+  logged-in user (username from the session via `ToolContext`). **Confirm-before-write is enforced in code**:
+  `PendingActionStore` only lets a proposal be confirmed in a later chat turn.
+- **Agent 2 – autonomous reminder agent** (`ai/reminder/`): `@Scheduled` daily at 8:00 → finds appointments in the next 48 h,
+  Gemini writes a personalized reminder (grounded with the "what to bring" policy), sent through the Milestone 3 notification
+  gateway; template fallback if Gemini fails; never reminds twice. Manual trigger: **"Run reminder agent now"** button on
+  advisor's *My Slots*, or `POST /api/agents/reminders/run`.
+- **RAG** (`ai/rag/`): `knowledge/advising-policies.md` → one document per section → Gemini embeddings (`gemini-embedding-001`)
+  → `SimpleVectorStore` → `POST /api/ask` answers only from retrieved sections (with sources). The chat agent uses it as a tool.
+- **Bonus – persistent conversation memory:** chat history is stored in PostgreSQL (`SPRING_AI_CHAT_MEMORY`, Spring AI JDBC
+  chat memory), so conversations survive a restart.
+- **Tests:** `AgentBookingToolIntegrationTest` (agent booking blocked by the double-booking guard, confirm-before-write, RBAC,
+  concurrent agent bookings), `ReminderAgentIntegrationTest`, unit tests. No API key needed for tests/CI.
+
+### Gemini API key (never committed)
+```bash
+export GEMINI_API_KEY=your-key-here      # local run (./mvnw spring-boot:run)
+cp .env.example .env                     # Docker: put the key in .env (git-ignored)
+```
+Model: `gemini-3.8-flash` by default; override with `GEMINI_MODEL=...` if needed.
+Only `spring.ai.google.genai.api-key` is set (no project-id/location), so Spring AI uses the Gemini Developer API.
+
 ## Milestone 3 – Integration, Distribution & Deployment
 - **Mock notification service** (`mocknotify/`): a second controller at `/mock-notify` that stands in for an
   external email/SMS provider. Logs + stores notifications in memory, keyed by `eventId` (duplicates ignored).
@@ -112,4 +139,5 @@ All seed users have the password `password123` (stored BCrypt-hashed).
 ## Videos
 - Milestone 1: https://youtu.be/_3F6ODbN2GE
 - Milestone 2: https://youtu.be/PJ8vn_LDbqg
-- Milestone 3: https://youtu.be/X35z6p8Gvtw 
+- Milestone 3: https://youtu.be/X35z6p8Gvtw
+- Milestone 4:

@@ -111,6 +111,29 @@ public class AppointmentRepository {
     }
 
     /**
+     * Milestone 4, Agent 2: BOOKED appointments starting in (from, to] that have not had a reminder yet.
+     */
+    public List<AppointmentRow> findNeedingReminder(LocalDateTime from, LocalDateTime to) {
+        String sql = BASE_SELECT + """
+             WHERE a.status = 'BOOKED'
+               AND s.start_time >  ?
+               AND s.start_time <= ?
+               AND NOT EXISTS (SELECT 1 FROM appointment_reminders r WHERE r.appointment_id = a.id)
+             ORDER BY s.start_time
+            """;
+        return jdbc.query(sql, MAPPER, from, to);
+    }
+
+    /** Remembers that this appointment got its reminder (idempotent). */
+    public void recordReminder(long appointmentId, String message, boolean aiGenerated, boolean delivered) {
+        jdbc.update("""
+            INSERT INTO appointment_reminders (appointment_id, message, ai_generated, delivered)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT (appointment_id) DO NOTHING
+            """, appointmentId, message, aiGenerated, delivered);
+    }
+
+    /**
      * Owner-only cancel. The WHERE clause checks owner + status, so it returns 0
      * if the appointment is not theirs or is no longer BOOKED.
      */

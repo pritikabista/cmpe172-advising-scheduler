@@ -44,6 +44,18 @@ public class AppointmentNotifier {
         notify(appointmentId, NotificationRequest.BOOKING_CANCELLED);
     }
 
+    /**
+     * Milestone 4, Agent 2: send an AI-written reminder through the same gateway (same timeout,
+     * retry, outbox fallback). Returns true if delivered now, false if queued for retry.
+     */
+    public boolean appointmentReminder(AppointmentRow appt, String message) {
+        String text = message.length() <= 480 ? message : message.substring(0, 480);
+        NotificationRequest request = new NotificationRequest(
+                "appointment-" + appt.id() + "-" + NotificationRequest.APPOINTMENT_REMINDER,
+                appt.studentEmail(), NotificationRequest.APPOINTMENT_REMINDER, text);
+        return deliver(request);
+    }
+
     private void notify(long appointmentId, String type) {
         try {
             AppointmentRow appt = appointmentRepository.findById(appointmentId).orElse(null);
@@ -51,19 +63,31 @@ public class AppointmentNotifier {
                 log.warn("No notification sent: appointment {} not found", appointmentId);
                 return;
             }
-            NotificationRequest request = buildRequest(appt, type);
+            deliver(buildRequest(appt, type));
+        } catch (RuntimeException e) {
+            // Don't fail the (already committed) booking.
+            log.error("Could not send or queue notification for appointment {}", appointmentId, e);
+        }
+    }
+
+    /** Send; on failure fall back to the outbox. Never throws. True = delivered now. */
+    private boolean deliver(NotificationRequest request) {
+        try {
             try {
                 gateway.send(request);
                 metrics.notificationSent();
+                return true;
             } catch (NotificationDeliveryException e) {
                 // fallback: keep the booking, queue the notification for the retry job
                 outbox.savePending(request, e.getMessage());
                 metrics.notificationFailed();
                 log.warn("Notification {} queued for retry: {}", request.eventId(), e.getMessage());
+                return false;
             }
         } catch (RuntimeException e) {
-            // e.g. the outbox insert failed too. Still don't fail the (already committed) booking.
-            log.error("Could not send or queue notification for appointment {}", appointmentId, e);
+            // e.g. the outbox insert failed too
+            log.error("Could not send or queue notification {}", request.eventId(), e);
+            return false;
         }
     }
 

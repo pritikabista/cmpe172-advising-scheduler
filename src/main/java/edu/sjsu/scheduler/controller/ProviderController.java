@@ -1,5 +1,7 @@
 package edu.sjsu.scheduler.controller;
 
+import edu.sjsu.scheduler.ai.reminder.ReminderAgent;
+import edu.sjsu.scheduler.ai.reminder.ReminderRunResult;
 import edu.sjsu.scheduler.service.ProviderService;
 import edu.sjsu.scheduler.service.SchedulingService;
 import org.springframework.stereotype.Controller;
@@ -18,10 +20,23 @@ public class ProviderController {
 
     private final ProviderService providerService;
     private final SchedulingService schedulingService;
+    private final ReminderAgent reminderAgent;
 
-    public ProviderController(ProviderService providerService, SchedulingService schedulingService) {
+    public ProviderController(ProviderService providerService, SchedulingService schedulingService,
+                              ReminderAgent reminderAgent) {
         this.providerService = providerService;
         this.schedulingService = schedulingService;
+        this.reminderAgent = reminderAgent;
+    }
+
+    /** Milestone 4: "Run reminder agent now" button (manual trigger for the demo). */
+    @PostMapping("/provider/agents/reminders/run")
+    public String runReminderAgent(RedirectAttributes flash) {
+        ReminderRunResult r = reminderAgent.run("manual-button");
+        flash.addFlashAttribute("message", "Reminder agent ran: " + r.found() + " appointment(s) found, "
+                + r.aiWritten() + " written by AI, " + r.fallbackUsed() + " template fallback, "
+                + r.delivered() + " delivered, " + r.queued() + " queued for retry.");
+        return "redirect:/provider/slots";
     }
 
     @GetMapping("/provider/slots")

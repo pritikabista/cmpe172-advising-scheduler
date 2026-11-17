@@ -7,6 +7,12 @@
 <h1>My Availability Slots</h1>
 <p class="msg" th:if="${message}" th:text="${message}"></p>
 
+<h2>Reminder agent (AI)</h2>
+<form th:action="@{/provider/agents/reminders/run}" method="post">
+    <button type="submit">Run reminder agent now</button>
+    <span class="muted">Normally runs automatically every day at 8:00. Sends AI-written reminders for appointments in the next 48 hours.</span>
+</form>
+
 <h2>Add a slot</h2>
 <form th:action="@{/provider/slots}" method="post">
     <label>Service

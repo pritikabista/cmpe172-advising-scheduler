@@ -29,6 +29,7 @@
     <a class="brand" th:href="@{/}">SJSU Campus Advising</a>
     <a th:href="@{/slots}">Available Slots</a>
     <a th:if="${isStudent}" th:href="@{/appointments}">My Appointments</a>
+    <a th:if="${isStudent}" th:href="@{/assistant}">AI Assistant</a>
     <a th:if="${isAdvisor}" th:href="@{/provider/slots}">My Slots</a>
     <a th:if="${isAdvisor}" th:href="@{/provider/appointments}">Bookings</a>
     <span th:if="${username != null}" class="muted" th:text="'Signed in as ' + ${username}"></span>

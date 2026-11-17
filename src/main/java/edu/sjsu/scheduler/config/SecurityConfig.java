@@ -24,6 +24,9 @@ public class SecurityConfig {
                 .requestMatchers("/slots/*/book", "/appointments", "/appointments/**").hasRole("CUSTOMER")
                 // advisor-only pages
                 .requestMatchers("/provider/**").hasRole("PROVIDER")
+                // Milestone 4: the chat agent acts for a student; the reminder trigger is for advisors
+                .requestMatchers("/assistant", "/api/chat").hasRole("CUSTOMER")
+                .requestMatchers("/api/agents/**").hasRole("PROVIDER")
                 // public pages
                 .requestMatchers("/", "/slots", "/login", "/error").permitAll()
                 // Milestone 3: health + metrics, and the mock notification service API

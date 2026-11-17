@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS appointment_reminders CASCADE;
 DROP TABLE IF EXISTS notification_outbox CASCADE;
 DROP TABLE IF EXISTS appointments CASCADE;
 DROP TABLE IF EXISTS availability_slots CASCADE;
@@ -79,3 +80,25 @@ CREATE TABLE notification_outbox (
 );
 
 CREATE INDEX idx_outbox_pending ON notification_outbox (status, created_at);
+
+-- Milestone 4, Agent 2: one row per appointment that already got its AI reminder
+-- (so the autonomous agent never reminds the same appointment twice).
+CREATE TABLE appointment_reminders (
+    appointment_id  BIGINT       PRIMARY KEY REFERENCES appointments(id) ON DELETE CASCADE,
+    message         VARCHAR(500) NOT NULL,
+    ai_generated    BOOLEAN      NOT NULL,
+    delivered       BOOLEAN      NOT NULL,
+    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Milestone 4 bonus: persistent chat memory for Agent 1 (Spring AI JDBC chat memory, PostgreSQL schema).
+-- NOT dropped on restart, so conversations survive an app restart.
+CREATE TABLE IF NOT EXISTS SPRING_AI_CHAT_MEMORY (
+    conversation_id VARCHAR(36) NOT NULL,
+    content         TEXT        NOT NULL,
+    type            VARCHAR(10) NOT NULL CHECK (type IN ('USER', 'ASSISTANT', 'SYSTEM', 'TOOL')),
+    "timestamp"     TIMESTAMP   NOT NULL,
+    sequence_id     BIGINT      NOT NULL
+);
+CREATE INDEX IF NOT EXISTS SPRING_AI_CHAT_MEMORY_CONVERSATION_ID_SEQUENCE_ID_IDX
+    ON SPRING_AI_CHAT_MEMORY (conversation_id, sequence_id);

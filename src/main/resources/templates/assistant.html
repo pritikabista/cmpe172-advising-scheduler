@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('AI Assistant')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+
+<!-- Spring Security CSRF token, sent as a header by fetch() -->
+<meta name="_csrf" th:content="${_csrf.token}">
+<meta name="_csrf_header" th:content="${_csrf.headerName}">
+
+<style>
+    #chat { border: 1px solid #ccc; border-radius: 6px; height: 380px; overflow-y: auto; padding: 10px; background: #fafbfc; }
+    .bubble { max-width: 80%; padding: 8px 12px; border-radius: 10px; margin: 6px 0; white-space: pre-wrap; line-height: 1.4; }
+    .user { background: #0055a2; color: #fff; margin-left: auto; }
+    .bot { background: #fff; border: 1px solid #ddd; }
+    .row { display: flex; }
+    #chatForm, #askForm { display: flex; gap: 8px; margin-top: 8px; }
+    #chatForm input, #askForm input { flex: 1; padding: 8px; font-size: 15px; }
+    .chips button { background: #e8eef6; color: #0055a2; margin: 4px 4px 0 0; }
+    #askAnswer { background: #fff; border: 1px solid #ddd; padding: 10px; border-radius: 6px; white-space: pre-wrap; display: none; }
+</style>
+
+<h1>AI Advising Assistant</h1>
+<p class="muted">Ask me to find, book, or cancel appointments. I always ask before booking or cancelling.</p>
+
+<div id="chat"></div>
+<div class="chips">
+    <button type="button" onclick="quick('Find the earliest Registration Help slot this week')">Earliest Registration Help this week</button>
+    <button type="button" onclick="quick('What appointments do I have?')">My appointments</button>
+    <button type="button" onclick="quick('What is the cancellation policy?')">Cancellation policy</button>
+</div>
+<form id="chatForm">
+    <input id="msg" maxlength="1000" placeholder="e.g. Book me a graduation check with Dr. Kim tomorrow" autocomplete="off">
+    <button type="submit" id="sendBtn">Send</button>
+    <button type="button" class="link" onclick="newConversation()">New conversation</button>
+</form>
+
+<h2>Policy Q&amp;A</h2>
+<p class="muted">Answers come only from the advising center's policy documents.</p>
+<form id="askForm">
+    <input id="question" maxlength="500" placeholder="e.g. What should I bring to a graduation check?" autocomplete="off">
+    <button type="submit">Ask</button>
+</form>
+<div id="askAnswer"></div>
+
+<script>
+    const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+    let conversationId = crypto.randomUUID();
+
+    async function post(url, body) {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', [csrfHeader]: csrfToken },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok && data.error) throw new Error(data.error);
+        return data;
+    }
+
+    function add(text, who) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const b = document.createElement('div');
+        b.className = 'bubble ' + who;
+        b.textContent = text;
+        row.appendChild(b);
+        document.getElementById('chat').appendChild(row);
+        row.scrollIntoView();
+        return b;
+    }
+
+    async function send(text) {
+        add(text, 'user');
+        const thinking = add('…', 'bot');
+        document.getElementById('sendBtn').disabled = true;
+        try {
+            const data = await post('/api/chat', { conversationId, message: text });
+            thinking.textContent = data.reply;
+        } catch (e) {
+            thinking.textContent = 'Error: ' + e.message;
+        } finally {
+            document.getElementById('sendBtn').disabled = false;
+        }
+    }
+
+    function quick(text) { send(text); }
+
+    function newConversation() {
+        conversationId = crypto.randomUUID();
+        document.getElementById('chat').innerHTML = '';
+        add('New conversation started. How can I help?', 'bot');
+    }
+
+    document.getElementById('chatForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const input = document.getElementById('msg');
+        const text = input.value.trim();
+        if (text) { input.value = ''; send(text); }
+    });
+
+    document.getElementById('askForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const q = document.getElementById('question').value.trim();
+        if (!q) return;
+        const box = document.getElementById('askAnswer');
+        box.style.display = 'block';
+        box.textContent = 'Searching the policies…';
+        try {
+            const data = await post('/api/ask', { question: q });
+            box.textContent = data.answer + (data.sources && data.sources.length
+                ? '\n\nSources: ' + data.sources.join(', ') : '');
+        } catch (err) {
+            box.textContent = 'Error: ' + err.message;
+        }
+    });
+
+    add('Hi! I can find open slots, book or cancel appointments, and answer advising policy questions.', 'bot');
+</script>
+</body>
+</html>

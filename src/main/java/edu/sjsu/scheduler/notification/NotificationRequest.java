@@ -14,4 +14,5 @@ public record NotificationRequest(String eventId, String recipient, String type,
 
     public static final String BOOKING_CONFIRMED = "BOOKING_CONFIRMED";
     public static final String BOOKING_CANCELLED = "BOOKING_CANCELLED";
+    public static final String APPOINTMENT_REMINDER = "APPOINTMENT_REMINDER";
 }
